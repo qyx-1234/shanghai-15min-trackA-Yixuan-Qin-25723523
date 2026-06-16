@@ -5,8 +5,8 @@ import type { TravelMode, LayerType, MapState, H3HexFeature, RecommenderWeights 
 const DEFAULT_MAP_STATE: MapState = {
   longitude: 121.47,
   latitude: 31.23,
-  zoom: 10,
-  pitch: 45,
+  zoom: 10.3,
+  pitch: 0,
   bearing: 0,
 };
 

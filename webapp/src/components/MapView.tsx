@@ -1,10 +1,15 @@
 import { useMemo } from 'react';
 import DeckGL from '@deck.gl/react';
-import { H3HexagonLayer } from '@deck.gl/geo-layers';
+import { GeoJsonLayer } from '@deck.gl/layers';
 import type { MapViewState } from '@deck.gl/core';
+import { Map } from 'react-map-gl/maplibre';
+import 'maplibre-gl/dist/maplibre-gl.css';
 import type { H3HexFeature, TravelMode, LayerType, MapState } from '../types';
 import { getScoreColor } from '../utils/colorScales';
 import { getHexScore } from '../hooks/useH3Data';
+
+const MAP_STYLE =
+  'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
 
 interface MapViewProps {
   data: H3HexFeature[] | null;
@@ -43,45 +48,43 @@ export default function MapView({
     const normalize = (score: number) =>
       maxScore > minScore ? (score - minScore) / (maxScore - minScore) : 0.5;
 
-    return new H3HexagonLayer<H3HexFeature>({
+    return new GeoJsonLayer({
       id: 'h3-hex-layer',
-      data,
+      data: {
+        type: 'FeatureCollection',
+        features: data,
+      },
       pickable: true,
-      extruded: true,
-      elevationScale: 80,
-      opacity: 0.85,
-      wireframe: true,
+      filled: true,
+      stroked: true,
+      opacity: 0.9,
 
-      getHexagon: (d: H3HexFeature) => d.properties.h3,
-      getFillColor: (d: H3HexFeature) => {
-        const score = getHexScore(d, travelMode, layerType);
-        return getScoreColor(normalize(score));
+      getFillColor: (feature) => {
+        const score = getHexScore(feature as H3HexFeature, travelMode, layerType);
+        return [...getScoreColor(normalize(score)), 210];
       },
-      getElevation: (d: H3HexFeature) => {
-        const score = getHexScore(d, travelMode, layerType);
-        return normalize(score) * 2000;
+      getLineColor: (feature) => {
+        const hex = feature as H3HexFeature;
+        if (topHexSet.has(hex.properties.h3)) return [255, 215, 0, 255];
+        return [20, 28, 32, 180];
       },
-      getLineColor: (d: H3HexFeature) => {
-        if (topHexSet.has(d.properties.h3)) return [255, 215, 0, 255];
-        return [100, 100, 100, 80];
-      },
-      getLineWidth: (d: H3HexFeature) => (topHexSet.has(d.properties.h3) ? 3 : 0.5),
+      getLineWidth: (feature) =>
+        topHexSet.has((feature as H3HexFeature).properties.h3) ? 3 : 1,
+      lineWidthMinPixels: 1,
 
-      onClick: (info: { object?: H3HexFeature }) => {
-        onHexClick(info.object ?? null);
+      onClick: (info) => {
+        onHexClick((info.object as H3HexFeature | undefined) ?? null);
       },
-      onHover: (info: { object?: H3HexFeature }) => {
-        onHexHover(info.object ?? null);
+      onHover: (info) => {
+        onHexHover((info.object as H3HexFeature | undefined) ?? null);
       },
 
       updateTriggers: {
         getFillColor: [travelMode, layerType, topHexes],
-        getElevation: [travelMode, layerType],
       },
 
       transitions: {
         getFillColor: 500,
-        getElevation: 800,
       },
     });
   }, [data, travelMode, layerType, topHexSet, onHexClick, onHexHover]);
@@ -156,6 +159,8 @@ export default function MapView({
         isDragging ? 'grabbing' : 'pointer'
       }
       style={{ background: '#1a1a2e' }}
-    />
+    >
+      <Map reuseMaps mapStyle={MAP_STYLE} />
+    </DeckGL>
   );
 }
